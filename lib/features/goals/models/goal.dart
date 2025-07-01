@@ -1,3 +1,12 @@
+enum GoalPriority {
+  high('높음'),
+  medium('중간'),
+  low('낮음');
+
+  final String label;
+  const GoalPriority(this.label);
+}
+
 class Goal {
   final String id;
   final String title;
@@ -5,7 +14,7 @@ class Goal {
   final DateTime deadline;
   final List<SubTask> subTasks;
   final String category;
-  final int priority;
+  final GoalPriority priority;
   final double progress;
   final List<String> evidencePhotoPaths;
   final List<String> documentPaths;
@@ -17,7 +26,7 @@ class Goal {
     required this.deadline,
     this.subTasks = const [],
     required this.category,
-    required this.priority,
+    this.priority = GoalPriority.medium,
     this.progress = 0.0,
     this.evidencePhotoPaths = const [],
     this.documentPaths = const [],
@@ -30,7 +39,7 @@ class Goal {
     DateTime? deadline,
     List<SubTask>? subTasks,
     String? category,
-    int? priority,
+    GoalPriority? priority,
     double? progress,
     List<String>? evidencePhotoPaths,
     List<String>? documentPaths,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import '../models/goal.dart';
 import '../providers/goal_provider.dart';
 
@@ -19,11 +18,9 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
   late TextEditingController _descriptionController;
   late DateTime _selectedDate;
   late String _selectedCategory;
-  late int _selectedPriority;
-  final List<SubTask> _subTasks = [];
+  late GoalPriority _selectedPriority;
 
-  final List<String> _categories = ['개인', '학업', '직장', '건강', '취미'];
-  final List<int> _priorities = [1, 2, 3, 4, 5];
+  final List<String> _categories = ['건강', '학습', '취미', '커리어', '재정', '관계', '기타'];
 
   @override
   void initState() {
@@ -33,11 +30,8 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
         TextEditingController(text: widget.goal?.description ?? '');
     _selectedDate =
         widget.goal?.deadline ?? DateTime.now().add(const Duration(days: 7));
-    _selectedCategory = widget.goal?.category ?? _categories[0];
-    _selectedPriority = widget.goal?.priority ?? 3;
-    if (widget.goal != null) {
-      _subTasks.addAll(widget.goal!.subTasks);
-    }
+    _selectedCategory = widget.goal?.category ?? _categories.first;
+    _selectedPriority = widget.goal?.priority ?? GoalPriority.medium;
   }
 
   @override
@@ -47,191 +41,160 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
     super.dispose();
   }
 
-  void _addSubTask() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final controller = TextEditingController();
-        return AlertDialog(
-          title: const Text('서브태스크 추가'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: '서브태스크 내용',
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.goal == null ? '새로운 목표' : '목표 수정'),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: '목표',
+                    hintText: '달성하고 싶은 목표를 입력하세요',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '목표를 입력해주세요';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: '설명',
+                    hintText: '목표에 대한 자세한 설명을 입력하세요',
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  '카테고리',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: _categories.map((category) {
+                    return ChoiceChip(
+                      label: Text(category),
+                      selected: _selectedCategory == category,
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() {
+                            _selectedCategory = category;
+                          });
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  '우선순위',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<GoalPriority>(
+                  segments: GoalPriority.values.map((priority) {
+                    return ButtonSegment<GoalPriority>(
+                      value: priority,
+                      label: Text(priority.label),
+                    );
+                  }).toList(),
+                  selected: {_selectedPriority},
+                  onSelectionChanged: (Set<GoalPriority> selected) {
+                    setState(() {
+                      _selectedPriority = selected.first;
+                    });
+                  },
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  '마감일',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedDate,
+                      firstDate: DateTime.now(),
+                      lastDate:
+                          DateTime.now().add(const Duration(days: 365 * 2)),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _selectedDate = picked;
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${_selectedDate.year}년 ${_selectedDate.month}월 ${_selectedDate.day}일',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        const Icon(Icons.calendar_today),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _saveGoal,
+                    child: Text(widget.goal == null ? '목표 추가' : '목표 수정'),
+                  ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (controller.text.isNotEmpty) {
-                  setState(() {
-                    _subTasks.add(SubTask(
-                      id: const Uuid().v4(),
-                      title: controller.text,
-                    ));
-                  });
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('추가'),
-            ),
-          ],
-        );
-      },
+        ),
+      ),
     );
   }
 
   void _saveGoal() {
     if (_formKey.currentState!.validate()) {
+      final goalProvider = Provider.of<GoalProvider>(context, listen: false);
       final goal = Goal(
-        id: widget.goal?.id ?? const Uuid().v4(),
+        id: widget.goal?.id ?? DateTime.now().toString(),
         title: _titleController.text,
         description: _descriptionController.text,
-        deadline: _selectedDate,
         category: _selectedCategory,
+        deadline: _selectedDate,
         priority: _selectedPriority,
-        subTasks: _subTasks,
-        evidencePhotoPaths: widget.goal?.evidencePhotoPaths ?? [],
-        documentPaths: widget.goal?.documentPaths ?? [],
+        progress: widget.goal?.progress ?? 0.0,
       );
 
       if (widget.goal == null) {
-        context.read<GoalProvider>().addGoal(goal);
+        goalProvider.addGoal(goal);
       } else {
-        context.read<GoalProvider>().updateGoal(goal);
+        goalProvider.updateGoal(goal);
       }
 
       Navigator.pop(context);
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.goal == null ? '새 목표 추가' : '목표 수정'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: '목표 제목',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return '목표 제목을 입력해주세요';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: '목표 설명',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              title: const Text('마감일'),
-              subtitle: Text(_selectedDate.toString().split(' ')[0]),
-              trailing: const Icon(Icons.calendar_today),
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: _selectedDate,
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-                );
-                if (date != null) {
-                  setState(() => _selectedDate = date);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedCategory,
-              decoration: const InputDecoration(
-                labelText: '카테고리',
-                border: OutlineInputBorder(),
-              ),
-              items: _categories.map((category) {
-                return DropdownMenuItem(
-                  value: category,
-                  child: Text(category),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _selectedCategory = value);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<int>(
-              value: _selectedPriority,
-              decoration: const InputDecoration(
-                labelText: '우선순위',
-                border: OutlineInputBorder(),
-              ),
-              items: _priorities.map((priority) {
-                return DropdownMenuItem(
-                  value: priority,
-                  child: Text('$priority'),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _selectedPriority = value);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('서브태스크', style: TextStyle(fontSize: 16)),
-                IconButton(
-                  onPressed: _addSubTask,
-                  icon: const Icon(Icons.add),
-                ),
-              ],
-            ),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _subTasks.length,
-              itemBuilder: (context, index) {
-                final subTask = _subTasks[index];
-                return ListTile(
-                  title: Text(subTask.title),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () {
-                      setState(() => _subTasks.removeAt(index));
-                    },
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _saveGoal,
-        child: const Icon(Icons.save),
-      ),
-    );
   }
 }
