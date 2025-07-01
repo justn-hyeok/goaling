@@ -20,7 +20,7 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
   late String _selectedCategory;
   late GoalPriority _selectedPriority;
 
-  final List<String> _categories = ['건강', '학습', '취미', '커리어', '재정', '관계', '기타'];
+  final List<String> _categories = ['학습', '취미', '커리어', '재정', '관계', '기타'];
 
   @override
   void initState() {
